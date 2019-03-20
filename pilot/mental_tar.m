@@ -1,0 +1,204 @@
+clc; clear; 
+
+%% set of problems 
+dir='/Users/jonathantsay/Dropbox/GitHub/mental-numberline/pilot/';
+Version = 2; % ver1 = rightarrow is true, left arrow is false; ver2 = right is false, left is true. 
+
+largest_operand = 9; 
+prob_first = [repmat([1:largest_operand]', [largest_operand, 1])];
+prob_sec = ones(largest_operand, 1);
+
+for m = 2:largest_operand
+temp = [repmat([m]', [largest_operand, 1])];
+prob_sec = [prob_sec;temp]; 
+end
+
+prob = [prob_first, prob_sec]; 
+prob_size = length(prob);
+
+%% repeat problems 
+
+set_size = 8; % half positive, half negative (4 types of negative trials)\
+problem_set = repmat(prob, [set_size, 1]);
+problem_size = size(problem_set, 1); 
+positive = zeros(4 * prob_size, 1); % half the questions are not the correct sum
+negative = []; 
+
+for i = 1:4
+    temp_neg = ones(prob_size, 1) * i;
+    negative = [negative;temp_neg];
+end
+
+
+trial_type = [positive;negative];
+problem_set = [problem_set, trial_type];
+
+%% Define Tables: ready to sort
+
+F = table(); 
+F.first_operand = problem_set(:, 1);
+F.sec_operand = problem_set(:, 2); 
+F.negative = problem_set(:, 3); 
+
+G = table(); 
+G.first_operand = problem_set(:, 1);
+G.sec_operand = problem_set(:, 2); 
+G.negative = problem_set(:, 3); 
+
+D = table();
+D.first_operand = nan(problem_size, 1);
+D.sec_operand = nan(problem_size, 1);
+D.negative = nan(problem_size, 1); 
+
+%% sort into desired order 
+
+% rule 1: no operants can overlap with previous questions 
+% rule 2: sum cannot be equal 
+
+i = 1; % set counter for problems
+k = 1; % set counter for iterations
+
+while true 
+   
+    rand_num = randi(size(F, 1), 1, 1); % generate random number
+    D.first_operand(i) = F.first_operand(rand_num);
+    D.sec_operand(i) = F.sec_operand(rand_num);
+    D.negative(i) = F.negative(rand_num); 
+    
+    if i == 1
+        
+        i = i + 1; 
+        F(rand_num, :) = [];
+        continue
+        
+    elseif i > 3 && D.negative(i) == 0 && (D.negative(i-1) + D.negative(i-2) + D.negative(i-3) == 0) % consecutive positive condition
+        
+        D.first_operand(i)= nan;
+        D.sec_operand(i) = nan; 
+        D.negative(i) = nan; 
+        k = k+1;
+        
+    elseif i > 3 && D.negative(i) ~= 0 && D.negative(i-1) ~= 0 && D.negative(i-2) ~= 0 && D.negative(i-3) ~= 0 % consecutive positive condition
+       
+        D.first_operand(i)= nan;
+        D.sec_operand(i) = nan; 
+        D.negative(i) = nan; 
+        k = k+1;
+        
+    elseif D.first_operand(i) == D.first_operand(i - 1) | D.first_operand(i) == D.sec_operand(i - 1)
+        
+        D.first_operand(i)= nan;
+        D.sec_operand(i) = nan; 
+        D.negative(i) = nan; 
+        k = k+1;
+        
+    elseif D.sec_operand(i) == D.first_operand(i - 1) | D.sec_operand(i) == D.sec_operand(i - 1)
+        
+        D.first_operand(i)= nan;
+        D.sec_operand(i) = nan; 
+        D.negative(i) = nan; 
+        k = k+1; 
+        
+    elseif (D.first_operand(i) + D.sec_operand(i)) == (D.first_operand(i-1)+D.sec_operand(i-1))
+        
+        D.first_operand(i)= nan;
+        D.sec_operand(i) = nan;
+        D.negative(i) = nan; 
+        k = k+1;
+
+    else
+        i = i + 1; 
+        k = 1; 
+        F(rand_num, :) = [];
+    end
+    
+    if size(F, 1) == 0 
+        break
+    elseif k > size(F, 1) 
+        k = 1;
+        i = 1;
+        disp(int2str(size(F, 1)));
+        F = G; 
+        D = table();
+        D.first_operand = nan(problem_size, 1);
+        D.sec_operand = nan(problem_size, 1); 
+        D.negative = nan(problem_size, 1); 
+        
+    else
+        continue; 
+    end
+end
+
+%% Add sums sums
+
+for i = 1:size(D, 1)
+    switch D.negative(i)
+        case 0
+             D.sum(i) = D.first_operand(i) + D.sec_operand(i); %positive case (sum = true sum)
+        case 1
+             D.sum(i) = D.first_operand(i) + D.sec_operand(i) + 1; %negative case (sum = false sum)
+        case 2
+             D.sum(i) = D.first_operand(i) + D.sec_operand(i) + 2; %negative case (sum = false sum)
+        case 3
+             D.sum(i) = D.first_operand(i) + D.sec_operand(i) + -1; %negative case (sum = false sum)
+        case 4
+             D.sum(i) = D.first_operand(i) + D.sec_operand(i) + -2; %negative case (sum = false sum)
+        otherwise
+            disp('error')
+    end
+end
+
+%% Create Export Table + between block messages 
+
+T = table(); 
+T.TN = [1:problem_size]'; 
+T.first_operand = D.first_operand;
+T.sec_operand = D.sec_operand; 
+T.negative = D.negative; 
+T.sum = D.sum; 
+T.message = zeros(problem_size, 1); 
+
+if Version == 1
+T.message(100:100:end) = 1; 
+else
+T.message(100:100:end) = 2;    
+end
+
+T.message(end) = 3;
+
+% test 
+% T.message(1) = 1; 
+% T.message(2) = 2; 
+% T.message(3) = 3;
+
+%% save tgt file
+
+set = table2array(T);
+
+set(:,1) = 1:size(set,1);
+%Add in last Betweenblocks
+%set(end,15) = 1;
+%Variables header file
+header = {'trialnum','first_oper', 'sec_oper', 'negative', 'sum', 'between_blocks'};
+
+if Version == 1
+    filename = strcat('mental','V1','P1', '.tgt');
+else
+    filename = strcat('mental','V2','P1','.tgt');
+end
+
+cd([dir 'TargetFiles'])
+disp('Saving...')
+fid = fopen(filename,'wt');
+[rows,cols] = size(set);
+fprintf(fid,'%s\t',header{:});
+for i = 1:rows
+    fprintf(fid,'\n');
+    for j = 1:cols
+        fprintf(fid,'%3.2f\t',set(i,j));
+    end
+end
+fclose(fid);
+
+
+
